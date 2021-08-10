@@ -1,66 +1,44 @@
 package org.firebirdsql.testcontainers;
 
+import org.apache.cayenne.ObjectContext;
+import org.apache.cayenne.configuration.server.ServerRuntime;
 import org.firebirdsql.gds.impl.GDSServerVersion;
 import org.firebirdsql.jdbc.FirebirdConnection;
 import org.junit.Test;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.SQLException;
 
-import static org.firebirdsql.testcontainers.FirebirdContainer.FIREBIRD_PORT;
-import static org.firebirdsql.testcontainers.FirebirdTestImages.FIREBIRD_259_SC_IMAGE;
-import static org.firebirdsql.testcontainers.FirebirdTestImages.FIREBIRD_259_SS_IMAGE;
-import static org.firebirdsql.testcontainers.FirebirdTestImages.FIREBIRD_TEST_IMAGE;
+import static org.firebirdsql.testcontainers.FirebirdTestImages.*;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.rnorth.visibleassertions.VisibleAssertions.*;
+import static org.rnorth.visibleassertions.VisibleAssertions.assertFalse;
 
 public class FirebirdContainerTest {
 
+    private ServerRuntime initServerRuntimeFrom(FirebirdContainer<?> firebirdContainer){
+        return ServerRuntime.builder()
+                .url(firebirdContainer.getJdbcUrl())
+                .user(firebirdContainer.getUsername())
+                .password(firebirdContainer.getPassword())
+                .jdbcDriver(firebirdContainer.getDriverClassName())
+                .addConfig("cayenne-project.xml")
+                .build();
+    }
+
     @Test
     public void testWithSysdbaPassword() throws SQLException {
+        FirebirdContainer<?> firebirdContainer = new FirebirdContainer<>("jacobalberty/firebird");
         final String sysdbaPassword = "sysdbapassword";
-        try (FirebirdContainer<?> container = new FirebirdContainer<>(FIREBIRD_TEST_IMAGE)
-                .withSysdbaPassword(sysdbaPassword)) {
-            container.start();
-
-            try (Connection connection = DriverManager.getConnection(container.getJdbcUrl(), "sysdba", sysdbaPassword)) {
-                assertTrue("Connection is valid", connection.isValid(100));
-            }
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    @Test
-    public void testImplicitImage() throws SQLException {
-        final String sysdbaPassword = "sysdbapassword";
-        try (FirebirdContainer<?> container = new FirebirdContainer<>()
-                .withSysdbaPassword(sysdbaPassword)) {
-            container.start();
-
-            try (Connection connection = DriverManager.getConnection(container.getJdbcUrl(), "sysdba", sysdbaPassword)) {
-                assertTrue("Connection is valid", connection.isValid(100));
-            }
-        }
-    }
-
-    /**
-     * With {@code username} set to sysdba, {@code password} should take precedence over {@code sysdbaPassword}
-     */
-    @Test
-    public void testUserPasswordTakesPrecedenceOverWithSysdbaPassword() throws SQLException {
-        final String userPassword = "password1";
-        final String withSysdbaPassword = "password2";
-        try (FirebirdContainer<?> container = new FirebirdContainer<>(FIREBIRD_TEST_IMAGE)
-                .withUsername("sysdba").withPassword(userPassword).withSysdbaPassword(withSysdbaPassword)) {
-            container.start();
-
-            try (Connection connection = DriverManager.getConnection(container.getJdbcUrl(), "sysdba", userPassword)) {
-                assertTrue("Connection is valid", connection.isValid(100));
-            }
-        }
+        firebirdContainer.withUsername("sysdba");
+        firebirdContainer.withPassword(sysdbaPassword);
+        firebirdContainer.start();
+        ServerRuntime cayenneRuntime = initServerRuntimeFrom(firebirdContainer);
+        ObjectContext context = cayenneRuntime.newContext();
+        context.commitChanges();
     }
 
     @Test
@@ -69,12 +47,10 @@ public class FirebirdContainerTest {
                 .withEnableLegacyClientAuth()) {
             container.start();
 
-            try (Connection connection = container.createConnection("");
-                 Statement statement = connection.createStatement();
-                 ResultSet rs = statement.executeQuery("select MON$AUTH_METHOD from MON$ATTACHMENTS where MON$ATTACHMENT_ID = CURRENT_CONNECTION")) {
-                assertTrue("Expected a row", rs.next());
-                assertEquals("Authentication method should be Legacy_Auth", "Legacy_Auth", rs.getString("MON$AUTH_METHOD"));
-            }
+            ServerRuntime cayenneRuntime = initServerRuntimeFrom(container);
+            ObjectContext context = cayenneRuntime.newContext();
+
+            context.commitChanges();
         }
     }
 
@@ -110,9 +86,11 @@ public class FirebirdContainerTest {
         try (FirebirdContainer<?> container = new FirebirdContainer<>(FIREBIRD_TEST_IMAGE).withEnableWireCrypt()) {
             container.start();
 
+            ServerRuntime cayenneRuntime = initServerRuntimeFrom(container);
+
             if (FirebirdContainer.isWireEncryptionSupported()) {
                 // Check connecting with wire crypt
-                try (Connection connection = container.createConnection("")) {
+                try (Connection connection = cayenneRuntime.getDataSource().getConnection()) {
                     GDSServerVersion serverVersion = connection.unwrap(FirebirdConnection.class).getFbDatabase().getServerVersion();
                     assertTrue("Expected encryption in use", serverVersion.isWireEncryptionUsed());
                 }
@@ -138,11 +116,8 @@ public class FirebirdContainerTest {
 
             assertEquals("Expect modified database name after start",
                     "/firebird/data/test", container.getDatabaseName());
-
-            try (Connection connection = DriverManager
-                    .getConnection("jdbc:firebirdsql://" + container.getHost() + ":" + container.getMappedPort(FIREBIRD_PORT) + "/" + container.getDatabaseName(),
-                            container.getUsername(), container.getPassword())
-            ) {
+            ServerRuntime cayenneRuntime = initServerRuntimeFrom(container);
+            try (Connection connection = cayenneRuntime.getDataSource().getConnection()) {
                 assertTrue(connection.isValid(1000));
             }
         }
@@ -161,11 +136,8 @@ public class FirebirdContainerTest {
 
             assertEquals("Expect modified database name after start",
                     "/firebird/data/test", container.getDatabaseName());
-
-            try (Connection connection = DriverManager
-                    .getConnection("jdbc:firebirdsql://" + container.getHost() + ":" + container.getMappedPort(FIREBIRD_PORT) + "/" + container.getDatabaseName(),
-                            container.getUsername(), container.getPassword())
-            ) {
+            ServerRuntime cayenneRuntime = initServerRuntimeFrom(container);
+            try (Connection connection = cayenneRuntime.getDataSource().getConnection()) {
                 assertTrue(connection.isValid(1000));
             }
         }

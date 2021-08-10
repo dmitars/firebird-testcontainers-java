@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-map xmlns="http://cayenne.apache.org/schema/10/modelMap"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://cayenne.apache.org/schema/10/modelMap https://cayenne.apache.org/schema/10/modelMap.xsd"
+	 project-version="10">
+	<property name="defaultPackage" value="org.example.cayenne.persistent"/>
+	<db-entity name="Artist">
+		<db-attribute name="Date_of_birth" type="DATE" isMandatory="true"/>
+		<db-attribute name="Id" type="INTEGER" isPrimaryKey="true" isMandatory="true"/>
+		<db-attribute name="Name" type="VARCHAR" isMandatory="true" length="255"/>
+	</db-entity>
+	<db-entity name="Gallery">
+		<db-attribute name="Id" type="INTEGER" isPrimaryKey="true" isMandatory="true"/>
+		<db-attribute name="Name" type="VARCHAR" length="200"/>
+	</db-entity>
+	<db-entity name="Painting">
+		<db-attribute name="Artist_id" type="INTEGER"/>
+		<db-attribute name="Gallery_id" type="INTEGER"/>
+		<db-attribute name="Id" type="INTEGER" isPrimaryKey="true" isMandatory="true"/>
+		<db-attribute name="Name" type="VARCHAR" isMandatory="true" length="200"/>
+	</db-entity>
+	<obj-entity name="Artist" className="org.example.cayenne.persistent.Artist" dbEntityName="Artist">
+		<obj-attribute name="dateOfBirth" type="java.time.LocalDate" db-attribute-path="Date_of_birth"/>
+		<obj-attribute name="name" type="java.lang.String" db-attribute-path="Name"/>
+	</obj-entity>
+	<obj-entity name="Gallery" className="org.example.cayenne.persistent.Gallery" dbEntityName="Gallery">
+		<obj-attribute name="name" type="java.lang.String" db-attribute-path="Name"/>
+	</obj-entity>
+	<obj-entity name="Painting" className="org.example.cayenne.persistent.Painting" dbEntityName="Painting">
+		<obj-attribute name="name" type="java.lang.String" db-attribute-path="Name"/>
+	</obj-entity>
+	<db-relationship name="paintings" source="Artist" target="Painting" toMany="true">
+		<db-attribute-pair source="Id" target="Artist_id"/>
+	</db-relationship>
+	<db-relationship name="paintings" source="Gallery" target="Painting" toMany="true">
+		<db-attribute-pair source="Id" target="Gallery_id"/>
+	</db-relationship>
+	<db-relationship name="gallery" source="Painting" target="Gallery">
+		<db-attribute-pair source="Gallery_id" target="Id"/>
+	</db-relationship>
+	<db-relationship name="untitledRel" source="Painting" target="Artist">
+		<db-attribute-pair source="Artist_id" target="Id"/>
+	</db-relationship>
+	<obj-relationship name="paintings" source="Artist" target="Painting" deleteRule="Cascade" db-relationship-path="paintings"/>
+	<obj-relationship name="paintings" source="Gallery" target="Painting" deleteRule="Deny" db-relationship-path="paintings"/>
+	<obj-relationship name="artist" source="Painting" target="Artist" deleteRule="Nullify" db-relationship-path="untitledRel"/>
+	<obj-relationship name="gallery" source="Painting" target="Gallery" deleteRule="Nullify" db-relationship-path="gallery"/>
+	<dbImport xmlns="http://cayenne.apache.org/schema/10/dbimport">
+		<tableTypes>
+			<tableType>TABLE</tableType>
+			<tableType>VIEW</tableType>
+		</tableTypes>
+		<forceDataMapCatalog>false</forceDataMapCatalog>
+		<forceDataMapSchema>false</forceDataMapSchema>
+		<namingStrategy>org.apache.cayenne.dbsync.naming.DefaultObjectNameGenerator</namingStrategy>
+		<skipPrimaryKeyLoading>false</skipPrimaryKeyLoading>
+		<skipRelationshipsLoading>false</skipRelationshipsLoading>
+		<useJava7Types>false</useJava7Types>
+		<usePrimitives>true</usePrimitives>
+	</dbImport>
+</data-map>

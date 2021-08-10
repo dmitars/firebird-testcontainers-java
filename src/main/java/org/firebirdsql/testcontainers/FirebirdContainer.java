@@ -1,6 +1,5 @@
 package org.firebirdsql.testcontainers;
 
-import lombok.extern.slf4j.Slf4j;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -8,7 +7,6 @@ import javax.crypto.Cipher;
 import java.security.NoSuchAlgorithmException;
 import java.time.ZoneId;
 
-@Slf4j
 public class FirebirdContainer<SELF extends FirebirdContainer<SELF>> extends JdbcDatabaseContainer<SELF> {
 
     public static final String NAME = "firebird";
@@ -88,8 +86,6 @@ public class FirebirdContainer<SELF extends FirebirdContainer<SELF>> extends Jdb
         if (enableWireCrypt) {
             addEnv("EnableWireCrypt", "true");
         } else if (!isWireEncryptionSupported()) {
-            log.warn("Java Virtual Machine does not support wire protocol encryption requirements. " +
-                "Downgrading to EnableWireCrypt = true. To fix this, configure the JVM with unlimited strength Cryptographic Jurisdiction Policy.");
             addEnv("EnableWireCrypt", "true");
         }
     }
@@ -220,7 +216,6 @@ public class FirebirdContainer<SELF extends FirebirdContainer<SELF>> extends Jdb
         try {
             return Cipher.getMaxAllowedKeyLength("ARC4") >= ARC4_REQUIRED_BITS;
         } catch (NoSuchAlgorithmException e) {
-            log.error("Cipher not found, JVM doesn't support encryption requirements", e);
             return false;
         }
     }
